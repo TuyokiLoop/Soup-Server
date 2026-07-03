@@ -42,7 +42,7 @@ function nextMusic()
     if (currentMusic >= musicList.length)
         currentMusic = 0;
 
-    console.log("♪ Ahora suena:", musicList[currentMusic].id);
+    console.log("♪ Música:", musicList[currentMusic].id);
 
     broadcast({
         type: "music",
@@ -52,7 +52,6 @@ function nextMusic()
     setTimeout(nextMusic, musicList[currentMusic].duration);
 }
 
-console.log("♪ Ahora suena:", musicList[currentMusic].id);
 setTimeout(nextMusic, musicList[currentMusic].duration);
 
 wss.on("connection", (ws) =>
@@ -69,7 +68,7 @@ wss.on("connection", (ws) =>
 
     players.set(ws.id, ws);
 
-    console.log(`[+] Jugador ${ws.id} conectado`);
+    console.log(`[+] Jugador ${ws.id}`);
 
     ws.send(JSON.stringify({
         type: "welcome",
@@ -78,9 +77,9 @@ wss.on("connection", (ws) =>
 
     sendCurrentMusic(ws);
 
-    players.forEach(p =>
+    for (const p of players.values())
     {
-        if (p.id === ws.id) return;
+        if (p.id === ws.id) continue;
 
         ws.send(JSON.stringify({
             type: "spawn",
@@ -103,7 +102,7 @@ wss.on("connection", (ws) =>
             frame: ws.frame,
             speed: ws.speed
         }));
-    });
+    }
 
     ws.on("message", (msg) =>
     {
@@ -113,7 +112,6 @@ wss.on("connection", (ws) =>
         for (let i = 0; i < packets.length; i++)
         {
             let p = packets[i];
-
             if (i > 0) p = "{" + p;
             if (i < packets.length - 1) p += "}";
 
@@ -125,7 +123,6 @@ wss.on("connection", (ws) =>
                 switch (data.type)
                 {
                     case "login":
-                    {
                         ws.username = data.name || "Anonimo";
 
                         broadcast({
@@ -138,18 +135,15 @@ wss.on("connection", (ws) =>
                             frame: ws.frame,
                             speed: ws.speed
                         });
-
-                        break;
-                    }
+                    break;
 
                     case "move":
-                    {
-                        ws.x = data.x;
-                        ws.y = data.y;
+                        ws.x = data.x || ws.x;
+                        ws.y = data.y || ws.y;
 
-                        if (data.spr !== undefined) ws.spr = data.spr;
-                        if (data.frame !== undefined) ws.frame = data.frame;
-                        if (data.speed !== undefined) ws.speed = data.speed;
+                        ws.spr = data.spr ?? ws.spr;
+                        ws.frame = data.frame ?? ws.frame;
+                        ws.speed = data.speed ?? ws.speed;
 
                         wss.clients.forEach(client =>
                         {
@@ -167,26 +161,15 @@ wss.on("connection", (ws) =>
                                 }));
                             }
                         });
-
-                        break;
-                    }
+                    break;
 
                     case "chat":
-                    {
                         broadcast({
                             type: "chat",
                             name: ws.username,
                             text: data.text || ""
                         });
-
-                        break;
-                    }
-
-                    case "music":
-                    {
-                        // opcional: si quieres control desde cliente después
-                        break;
-                    }
+                    break;
                 }
             }
             catch (err)
@@ -200,13 +183,13 @@ wss.on("connection", (ws) =>
     {
         players.delete(ws.id);
 
-        console.log(`[-] Jugador ${ws.id} desconectado`);
-
         broadcast({
             type: "disconnect",
             id: ws.id
         });
+
+        console.log(`[-] Jugador ${ws.id}`);
     });
 });
 
-console.log("Servidor WebSocket listo en puerto " + PORT);
+console.log("Servidor listo en puerto " + PORT);
